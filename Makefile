@@ -1,4 +1,4 @@
-PROGRAM   = snake
+PROGRAM   = snake.out
 CC        = gcc
 CFLAGS    = -g -Wall
 LDFLAGS   = -lGL -lGLU -lglut
