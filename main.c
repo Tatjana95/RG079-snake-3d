@@ -5,25 +5,45 @@
 #include <math.h>
 #include <time.h>
 #define TIMER_ID 1
-#define TIMER_INTERVAL 10
+#define TIMER_INTERVAL 500
+
+typedef struct{
+	float snake_x;
+	float snake_y;
+	float snake_z ;
+	struct SNAKE* next;
+	struct SNAKE* preview;
+}SNAKE;
 
 static void on_display(void);
 static void on_reshape(int width, int height);
 static void on_timer(int);
 static void on_keyboard(unsigned char key, int x, int y);
 
+static void key_indicator(int w, int a, int s, int d);
+
 static void draw_area();
 static void draw_frame();
 static void draw_grass();
-static void draw_snake();
+static void draw_snake(SNAKE* head);
 
 int animation_ongoing = 0;
 
 time_t t;
-int num_tail = 2;
 
 float frame_r, frame_g, frame_b;
 float snake_r, snake_g, snake_b;
+
+float correct_x, correct_y;
+
+int if_w = 0;
+int if_a = 1;
+int if_s = 0;
+int if_d = 0;
+
+SNAKE* snake;
+
+float rot_angle = 0;
 
 int main(int argc, char** argv)
 {
@@ -39,17 +59,17 @@ int main(int argc, char** argv)
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
 
-	/* Kreira se prozor. */
+	// Kreira se prozor. 
 	glutInitWindowSize(1100, 650);
 	glutInitWindowPosition(100, 100);
 	glutCreateWindow(argv[0]);
 
-	/* Registruju se callback funkcije. */
+	// Registruju se callback funkcije. 
 	glutKeyboardFunc(on_keyboard);
 	glutReshapeFunc(on_reshape);
 	glutDisplayFunc(on_display);
 
-	/* Obavlja se OpenGL inicijalizacija. */
+	// Obavlja se OpenGL inicijalizacija. 
 	glClearColor(0.8, 0.7, 1, 0);
 
 	glEnable(GL_DEPTH_TEST);
@@ -69,11 +89,32 @@ int main(int argc, char** argv)
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 1);
 	glEnable(GL_COLOR_MATERIAL);
 	
-	/* Program ulazi u glavnu petlju. */
+	//inicijalizacija zmije
+	snake = malloc(sizeof(SNAKE));
+	snake->snake_x = 0;
+	snake->snake_y = 0;
+	snake->snake_z = 0;
+	snake->next = NULL;
+	snake->preview = NULL;
+	
+	for(int i = 1; i < 3; i++)
+	{
+		SNAKE* tmp = malloc(sizeof(SNAKE));
+		if(tmp == NULL)
+			exit(EXIT_FAILURE);
+		
+		tmp->snake_x = -i*0.05;
+		//tmp->snake_y = -i*0.025;
+		
+		tmp->next = snake;
+		tmp->preview = NULL;
+		snake->preview = tmp;
+		snake = tmp;
+	}
 	
 	srand((unsigned) time(&t));
 	
-	//Inicijalizuju se bole za okvir terena
+	//Inicijalizuju se boje za okvir terena
 	frame_r = (rand() % 10) / 10.0;
 	frame_g = (rand() % 10) / 10.0;
 	frame_b = (rand() % 10) / 10.0;
@@ -82,6 +123,8 @@ int main(int argc, char** argv)
 	snake_g = (rand() % 10) / 10.0;
 	snake_b = (rand() % 10) / 10.0;
 	
+	// Program ulazi u glavnu petlju.
+
 	glutMainLoop();
 
 	return 0;
@@ -111,8 +154,7 @@ static void on_display()
 	glPopMatrix();
 	
 	glPushMatrix();
-		glTranslatef(0, 0, 0);
-		draw_snake();
+		draw_snake(snake);
 	glPopMatrix();
 	
 	glutSwapBuffers();
@@ -132,6 +174,8 @@ static void on_keyboard(unsigned char key, int x, int y)
 				animation_ongoing = 1;
 				glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
 			}
+			correct_x = -0.05;
+			correct_y = 0;
 			break;
 		case 'p':
 		case 'P':
@@ -141,19 +185,48 @@ static void on_keyboard(unsigned char key, int x, int y)
 		case 'R':
 			glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
 			animation_ongoing = 0;
+			correct_x = 0;
+			correct_y = 0;
+			snake->snake_x = 0;
+			snake->snake_y = 0;
+			snake->snake_z = 0;
 			break;
 		
 		case 'w':
 		case 'W':
+			if(!if_s)
+			{
+				key_indicator(1, 0, 0, 0);
+				correct_x = 0;
+				correct_y = 0.05;
+			}
 			break;
 		case 'a':
 		case 'A':
+			if(!if_d)
+			{
+				key_indicator(0, 1, 0, 0);
+				correct_x = -0.05;
+				correct_y = 0;
+			}
 			break;
 		case 's':
 		case 'S':
+			if(!if_w)
+			{
+				key_indicator(0, 0, 1, 0);
+				correct_x = 0;
+				correct_y = -0.05;
+			}
 			break;
 		case 'd':
 		case 'D':
+			if(!if_a)
+			{
+				key_indicator(0, 0, 0, 1);
+				correct_x = 0.05;
+				correct_y = 0;
+			}
 			break;
 	}
 }
@@ -167,6 +240,21 @@ static void on_timer(int id)
 	{
 		glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
 	}
+	
+	while(snake->next != NULL)
+		snake = snake->next;
+	
+	while(snake->preview != NULL)
+	{
+		SNAKE* tmp = snake->preview;
+		snake->snake_x = tmp->snake_x;
+		snake->snake_y = tmp->snake_y;
+		snake = snake->preview;
+	}
+	
+	snake->snake_x += correct_x;
+	snake->snake_y += correct_y;
+	
 	glutPostRedisplay();
 }
 
@@ -252,24 +340,49 @@ static void draw_grass()
 	glEnd();*/
 }
 
-static void draw_snake()
+static void draw_snake(SNAKE* head)
 {
-	glColor3f(snake_r, snake_g, snake_b);
+ 	if(snake_r != 0 && snake_g != 0.5 && snake_b !=0)
+ 		glColor3f(snake_r, snake_g, snake_b);
+ 	else
+ 		glColor3f(snake_r + 0.5, snake_g, snake_b + 0.1);
+// 	
+// 	glPushMatrix();
+// 		double clip_plane[] = {0, 0, 1, 0};
+// 		glClipPlane(GL_CLIP_PLANE0, clip_plane);
+// 		glEnable(GL_CLIP_PLANE0);
+// 		
+// 		for(int i = 2; i <= num_tail; i++)
+// 		{
+// 			glPushMatrix();
+// 				glTranslatef(i * 0.07 + ((0.015/num_tail) *0.01*i), 0, 0);
+// 				glutSolidSphere(0.05 - (0.015/num_tail) * i, 32, 32);
+// 				printf("%f\n", 0.05 - (0.015/num_tail) * i);
+// 			glPopMatrix();
+// 		}
+// 	glPopMatrix();
+// 	
+// 	glDisable(GL_CLIP_PLANE0);
 	
-	glPushMatrix();
+	while(head != NULL)
+	{
+		glPushMatrix();
 		double clip_plane[] = {0, 0, 1, 0};
-		glClipPlane(GL_CLIP_PLANE0, clip_plane);
+ 		glClipPlane(GL_CLIP_PLANE0, clip_plane);
 		glEnable(GL_CLIP_PLANE0);
+			glTranslatef(0.05 + head->snake_x, 0.05 + head->snake_y, head->snake_z);
+			glutSolidSphere(0.05 , 32, 32);	
+		glPopMatrix();
 		
-		for(int i = 0; i <= num_tail; i++)
-		{
-			glPushMatrix();
-				glTranslatef(i * 0.07 + ((0.015/num_tail) *0.01*i), 0, 0);
-				glutSolidSphere(0.05 - (0.015/num_tail) * i, 32, 32);
-				printf("%f\n", 0.05 - (0.015/num_tail) * i);
-			glPopMatrix();
-		}
-	glPopMatrix();
-	
+		head = head->next;
+	}
 	glDisable(GL_CLIP_PLANE0);
+}
+
+static void key_indicator(int w, int a, int s, int d)
+{
+	if_w = w;
+	if_a = a;
+	if_s = s;
+	if_d = d;
 }
