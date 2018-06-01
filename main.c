@@ -1,11 +1,12 @@
 #include <stdlib.h>
 #include <GL/glut.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <math.h>
 #include <time.h>
 #define TIMER_ID 1
-#define TIMER_INTERVAL 500
+#define TIMER_INTERVAL 200
+
+#define EPS (0.000001)
 
 typedef struct{
 	float snake_x;
@@ -26,13 +27,25 @@ static void draw_area();
 static void draw_frame();
 static void draw_grass();
 static void draw_snake(SNAKE* head);
+static void initial_snake();
+
+static void draw_food(float r, float g, float b);
+
+static void snake_move();
+static int hit_wall(float x, float y);
+static int snake_eat(float s_x, float s_y, float f_x, float x_y);
+
+static void end_game();
 
 int animation_ongoing = 0;
+int game_over= 0;
 
 time_t t;
 
 float frame_r, frame_g, frame_b;
 float snake_r, snake_g, snake_b;
+float food_x, food_y;
+float food_r, food_g, food_b;
 
 float correct_x, correct_y;
 
@@ -44,6 +57,8 @@ int if_d = 0;
 SNAKE* snake;
 
 float rot_angle = 0;
+
+int new_food = 1;
 
 int main(int argc, char** argv)
 {
@@ -90,27 +105,7 @@ int main(int argc, char** argv)
 	glEnable(GL_COLOR_MATERIAL);
 	
 	//inicijalizacija zmije
-	snake = malloc(sizeof(SNAKE));
-	snake->snake_x = 0;
-	snake->snake_y = 0;
-	snake->snake_z = 0;
-	snake->next = NULL;
-	snake->preview = NULL;
-	
-	for(int i = 1; i < 3; i++)
-	{
-		SNAKE* tmp = malloc(sizeof(SNAKE));
-		if(tmp == NULL)
-			exit(EXIT_FAILURE);
-		
-		tmp->snake_x = -i*0.05;
-		//tmp->snake_y = -i*0.025;
-		
-		tmp->next = snake;
-		tmp->preview = NULL;
-		snake->preview = tmp;
-		snake = tmp;
-	}
+	initial_snake();
 	
 	srand((unsigned) time(&t));
 	
@@ -157,6 +152,57 @@ static void on_display()
 		draw_snake(snake);
 	glPopMatrix();
 	
+	//Provera da li zmija udara u zid
+	if(hit_wall(snake->snake_x, snake->snake_y))
+		end_game();
+	
+	//Hrana za zmiju
+	if(new_food)
+	{
+		//x koordinata je slucajan broj izmedju -1 i 1 sa korakom 0.05
+		food_x  = ((rand() % 40) / 20.0) - 1;
+		if(food_x == -1)
+			food_x = -0.95;
+		//y koordinata je slucajan broj izmedju -1 i 1 sa korakom 0.05
+		food_y  = ((rand() % 40) / 20.0) - 1;
+		if(food_y == -1)
+			food_y = -0.95;
+		
+		//Boja hrane
+		food_r = (rand() % 10) / 10.0;
+		food_g = (rand() % 10) / 10.0;
+		food_b = (rand() % 10) / 10.0;
+		
+		new_food = 0;
+	}
+
+	glPushMatrix();
+		glTranslatef(food_x, food_y, 0.025);
+		draw_food(food_r, food_g, food_b);
+	glPopMatrix();
+	
+	//Provera da li zmija jede hranu
+	
+	if(snake_eat(snake->snake_x, snake->snake_y, food_x, food_y))
+	{
+		new_food = 1;
+		printf("Pojela :D\n");
+		
+		//Zmija raste
+		SNAKE* tmp = malloc(sizeof(SNAKE));
+		if(tmp == NULL)
+			exit(EXIT_FAILURE);
+		
+		tmp->snake_x = food_x;
+		tmp->snake_y = food_y;
+		
+		tmp->next = snake;
+		tmp->preview = NULL;
+		
+		snake->preview = tmp;
+		snake = tmp;
+	}
+	
 	glutSwapBuffers();
 }
 
@@ -174,8 +220,13 @@ static void on_keyboard(unsigned char key, int x, int y)
 				animation_ongoing = 1;
 				glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
 			}
-			correct_x = -0.05;
-			correct_y = 0;
+			if(game_over)
+			{
+				initial_snake();
+				key_indicator(0, 1, 0, 0);
+				game_over = 0;
+			}
+			snake_move();
 			break;
 		case 'p':
 		case 'P':
@@ -185,47 +236,39 @@ static void on_keyboard(unsigned char key, int x, int y)
 		case 'R':
 			glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
 			animation_ongoing = 0;
-			correct_x = 0;
-			correct_y = 0;
-			snake->snake_x = 0;
-			snake->snake_y = 0;
-			snake->snake_z = 0;
+			initial_snake();
 			break;
 		
 		case 'w':
 		case 'W':
-			if(!if_s)
+			if(!if_s && animation_ongoing)
 			{
 				key_indicator(1, 0, 0, 0);
-				correct_x = 0;
-				correct_y = 0.05;
+				snake_move();
 			}
 			break;
 		case 'a':
 		case 'A':
-			if(!if_d)
+			if(!if_d && animation_ongoing)
 			{
 				key_indicator(0, 1, 0, 0);
-				correct_x = -0.05;
-				correct_y = 0;
+				snake_move();
 			}
 			break;
 		case 's':
 		case 'S':
-			if(!if_w)
+			if(!if_w && animation_ongoing)
 			{
 				key_indicator(0, 0, 1, 0);
-				correct_x = 0;
-				correct_y = -0.05;
+				snake_move();
 			}
 			break;
 		case 'd':
 		case 'D':
-			if(!if_a)
+			if(!if_a && animation_ongoing)
 			{
 				key_indicator(0, 0, 0, 1);
-				correct_x = 0.05;
-				correct_y = 0;
+				snake_move();
 			}
 			break;
 	}
@@ -239,21 +282,23 @@ static void on_timer(int id)
 	if(animation_ongoing)
 	{
 		glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
+	
+	
+		while(snake->next != NULL)
+			snake = snake->next;
+		
+		while(snake->preview != NULL)
+		{
+			SNAKE* tmp = snake->preview;
+			snake->snake_x = tmp->snake_x;
+			snake->snake_y = tmp->snake_y;
+			snake = snake->preview;
+		}
+		
+		snake->snake_x += correct_x;
+		snake->snake_y += correct_y;
+	
 	}
-	
-	while(snake->next != NULL)
-		snake = snake->next;
-	
-	while(snake->preview != NULL)
-	{
-		SNAKE* tmp = snake->preview;
-		snake->snake_x = tmp->snake_x;
-		snake->snake_y = tmp->snake_y;
-		snake = snake->preview;
-	}
-	
-	snake->snake_x += correct_x;
-	snake->snake_y += correct_y;
 	
 	glutPostRedisplay();
 }
@@ -287,7 +332,7 @@ static void draw_frame()
 			glutSolidCube(0.1);
 		glPopMatrix();
 	}
-	
+
 	//Leva ivica
 	for(int i=0; i < 22; i++)  
 	{
@@ -296,7 +341,7 @@ static void draw_frame()
 			glutSolidCube(0.1);
 		glPopMatrix();
 	}
-	
+
 	//Desna ivica
 	for(int i=0; i < 22; i++)  
 	{
@@ -305,7 +350,7 @@ static void draw_frame()
 			glutSolidCube(0.1);
 		glPopMatrix();
 	}
-	
+
 	//Donja ivica
 	for(int i=0; i < 22; i++)  
 	{
@@ -314,7 +359,7 @@ static void draw_frame()
 			glutSolidCube(0.1);
 		glPopMatrix();
 	}
-	
+
 }
 
 static void draw_grass()
@@ -326,7 +371,7 @@ static void draw_grass()
 		glVertex3f(1, -1, 0);
 		glVertex3f(-1, -1, 0);
 	glEnd();	
-	
+
 	/*glBegin(GL_LINES);
 		glColor3f(0, 0, 0);
 		for(int i=0;i<21;i++)
@@ -364,13 +409,23 @@ static void draw_snake(SNAKE* head)
 // 	
 // 	glDisable(GL_CLIP_PLANE0);
 	
+	//Da li je zmija ujela samu sebe
+	SNAKE* tmp = head->next;
+	for(; tmp != NULL; tmp = tmp->next)
+		if((fabs(tmp->snake_x - head->snake_x) < EPS) && (fabs(tmp->snake_y - head->snake_y) < EPS))
+		{
+			end_game();
+			break;
+		}
+		
+	//Iscrtavanje zmije
 	while(head != NULL)
 	{
 		glPushMatrix();
 		double clip_plane[] = {0, 0, 1, 0};
  		glClipPlane(GL_CLIP_PLANE0, clip_plane);
 		glEnable(GL_CLIP_PLANE0);
-			glTranslatef(0.05 + head->snake_x, 0.05 + head->snake_y, head->snake_z);
+			glTranslatef(head->snake_x, head->snake_y, head->snake_z);
 			glutSolidSphere(0.05 , 32, 32);	
 		glPopMatrix();
 		
@@ -379,10 +434,95 @@ static void draw_snake(SNAKE* head)
 	glDisable(GL_CLIP_PLANE0);
 }
 
+static void initial_snake()
+{
+	snake = malloc(sizeof(SNAKE));
+	snake->snake_x = 0;
+	snake->snake_y = 0;
+	snake->snake_z = 0;
+	snake->next = NULL;
+	snake->preview = NULL;
+	
+	for(int i = 1; i < 3; i++)
+	{
+		SNAKE* tmp = malloc(sizeof(SNAKE));
+		if(tmp == NULL)
+			exit(EXIT_FAILURE);
+		
+		tmp->snake_x = -i*0.05;
+		//tmp->snake_y = -i*0.025;
+		
+		tmp->next = snake;
+		tmp->preview = NULL;
+		snake->preview = tmp;
+		snake = tmp;
+	}
+}
+
+static void draw_food(float r, float g, float b)
+{
+	if(food_r != 0 && food_g != 0.5 && food_b !=0)
+ 		glColor3f(food_r, food_g, food_b);
+ 	else
+ 		glColor3f(food_r + 0.5, food_g, food_b + 0.1);
+	
+	glPushMatrix();
+		glutSolidSphere(0.05, 32, 32);
+	glPopMatrix();
+}
+
 static void key_indicator(int w, int a, int s, int d)
 {
 	if_w = w;
 	if_a = a;
 	if_s = s;
 	if_d = d;
+}
+
+static int hit_wall(float x, float y)
+{
+	if(x > 0.951 || x < -0.951)
+		return 1;
+	if(y > 0.951 || y < -0.951)
+		return 1;
+	return 0;
+}
+
+static void snake_move()
+{
+	if(if_w)
+	{
+		correct_x = 0;
+ 		correct_y = 0.05;
+	}
+	if(if_a)
+	{
+		correct_x = -0.05;
+ 		correct_y = 0;
+	}
+	if(if_s)
+	{
+		correct_x = 0;
+		correct_y = -0.05;
+	}
+	if(if_d)
+	{
+		correct_x = 0.05;
+ 		correct_y = 0;
+	}
+}
+
+static int snake_eat(float s_x, float s_y, float f_x, float f_y)
+{
+	if((fabs(s_x - f_x) < EPS) && (fabs(s_y - f_y) < EPS)) 
+		return 1;
+	
+	return 0;
+}
+
+static void end_game()
+{
+	animation_ongoing = 0;
+	game_over = 1;
+	printf("Kraj!!! :P\n");
 }
