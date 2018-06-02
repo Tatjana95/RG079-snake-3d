@@ -21,6 +21,8 @@ static void on_reshape(int width, int height);
 static void on_timer(int);
 static void on_keyboard(unsigned char key, int x, int y);
 
+void printText(char* text, float x, float y, float z);
+
 static void key_indicator(int w, int a, int s, int d);
 
 static void draw_area();
@@ -36,6 +38,9 @@ static int hit_wall(float x, float y);
 static int snake_eat(float s_x, float s_y, float f_x, float x_y);
 
 static void end_game();
+
+static float food_coor();
+static float color_rand();
 
 int animation_ongoing = 0;
 int game_over= 0;
@@ -56,9 +61,13 @@ int if_d = 0;
 
 SNAKE* snake;
 
+int snake_acceleration = 0;
+
 float rot_angle = 0;
 
 int new_food = 1;
+
+score = 0;
 
 int main(int argc, char** argv)
 {
@@ -77,7 +86,7 @@ int main(int argc, char** argv)
 	// Kreira se prozor. 
 	glutInitWindowSize(1100, 650);
 	glutInitWindowPosition(100, 100);
-	glutCreateWindow(argv[0]);
+	glutCreateWindow("Snake 3D");
 
 	// Registruju se callback funkcije. 
 	glutKeyboardFunc(on_keyboard);
@@ -110,13 +119,13 @@ int main(int argc, char** argv)
 	srand((unsigned) time(&t));
 	
 	//Inicijalizuju se boje za okvir terena
-	frame_r = (rand() % 10) / 10.0;
-	frame_g = (rand() % 10) / 10.0;
-	frame_b = (rand() % 10) / 10.0;
+	frame_r = color_rand();
+	frame_g = color_rand();
+	frame_b = color_rand();
 	
-	snake_r = (rand() % 10) / 10.0;
-	snake_g = (rand() % 10) / 10.0;
-	snake_b = (rand() % 10) / 10.0;
+	snake_r = color_rand();
+	snake_g = color_rand();
+	snake_b = color_rand();
 	
 	// Program ulazi u glavnu petlju.
 
@@ -160,18 +169,18 @@ static void on_display()
 	if(new_food)
 	{
 		//x koordinata je slucajan broj izmedju -1 i 1 sa korakom 0.05
-		food_x  = ((rand() % 40) / 20.0) - 1;
+		food_x  = food_coor();
 		if(food_x == -1)
 			food_x = -0.95;
 		//y koordinata je slucajan broj izmedju -1 i 1 sa korakom 0.05
-		food_y  = ((rand() % 40) / 20.0) - 1;
+		food_y  = food_coor();
 		if(food_y == -1)
 			food_y = -0.95;
 		
 		//Boja hrane
-		food_r = (rand() % 10) / 10.0;
-		food_g = (rand() % 10) / 10.0;
-		food_b = (rand() % 10) / 10.0;
+		food_r = color_rand();
+		food_g = color_rand();
+		food_b = color_rand();
 		
 		new_food = 0;
 	}
@@ -185,8 +194,9 @@ static void on_display()
 	
 	if(snake_eat(snake->snake_x, snake->snake_y, food_x, food_y))
 	{
+		score++;
 		new_food = 1;
-		printf("Pojela :D\n");
+		printf("%d\n", score);
 		
 		//Zmija raste
 		SNAKE* tmp = malloc(sizeof(SNAKE));
@@ -201,7 +211,14 @@ static void on_display()
 		
 		snake->preview = tmp;
 		snake = tmp;
+		
+		//Ubrzavamo zmiju kada pojede nesto
+		snake_acceleration-=2;
 	}
+	
+	char score_text[50] ;
+	sprintf(score_text, "SCORE: %d", score);
+	printText(score_text, -4,3,0);
 	
 	glutSwapBuffers();
 }
@@ -218,13 +235,14 @@ static void on_keyboard(unsigned char key, int x, int y)
 			if(!animation_ongoing)
 			{
 				animation_ongoing = 1;
-				glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
+				glutTimerFunc(TIMER_INTERVAL + snake_acceleration, on_timer, TIMER_ID);
 			}
 			if(game_over)
 			{
 				initial_snake();
 				key_indicator(0, 1, 0, 0);
 				game_over = 0;
+				score = 0;
 			}
 			snake_move();
 			break;
@@ -236,7 +254,10 @@ static void on_keyboard(unsigned char key, int x, int y)
 		case 'R':
 			glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
 			animation_ongoing = 0;
+			snake_acceleration = 0;
+			key_indicator(0, 1, 0, 0);
 			initial_snake();
+			score = 0;
 			break;
 		
 		case 'w':
@@ -281,7 +302,7 @@ static void on_timer(int id)
 	
 	if(animation_ongoing)
 	{
-		glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
+		glutTimerFunc(TIMER_INTERVAL + snake_acceleration, on_timer, TIMER_ID);
 	
 	
 		while(snake->next != NULL)
@@ -524,5 +545,28 @@ static void end_game()
 {
 	animation_ongoing = 0;
 	game_over = 1;
+	snake_acceleration = 0;
+	//score = 0;
 	printf("Kraj!!! :P\n");
+	
+	printText("GAME OVER", -0.1, 0, 1);
+}
+
+void printText(char* text, float x, float y, float z)
+{
+	char* tmp;
+	glRasterPos3f(x, y, z);
+	
+	for(tmp = text ; *tmp != '\0'; tmp++)
+		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, *tmp);
+}
+
+static float food_coor()
+{
+	return ((rand() % 40) / 20.0) - 1;
+}
+
+static float color_rand()
+{
+	return (rand() % 10) / 10.0;
 }
