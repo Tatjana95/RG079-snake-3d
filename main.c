@@ -3,8 +3,9 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#include <limits.h>
 #define TIMER_ID 1
-#define TIMER_INTERVAL 200
+#define TIMER_INTERVAL 100
 
 #define EPS (0.000001)
 
@@ -123,6 +124,7 @@ int main(int argc, char** argv)
 	frame_g = color_rand();
 	frame_b = color_rand();
 	
+	//Inicijalizuju se boje za zmiju
 	snake_r = color_rand();
 	snake_g = color_rand();
 	snake_b = color_rand();
@@ -213,7 +215,8 @@ static void on_display()
 		snake = tmp;
 		
 		//Ubrzavamo zmiju kada pojede nesto
-		snake_acceleration-=2;
+		if(snake_acceleration < 200)
+			snake_acceleration+=2;
 	}
 	
 	char score_text[50] ;
@@ -235,7 +238,7 @@ static void on_keyboard(unsigned char key, int x, int y)
 			if(!animation_ongoing)
 			{
 				animation_ongoing = 1;
-				glutTimerFunc(TIMER_INTERVAL + snake_acceleration, on_timer, TIMER_ID);
+				glutTimerFunc(TIMER_INTERVAL - snake_acceleration, on_timer, TIMER_ID);
 			}
 			if(game_over)
 			{
@@ -302,7 +305,7 @@ static void on_timer(int id)
 	
 	if(animation_ongoing)
 	{
-		glutTimerFunc(TIMER_INTERVAL + snake_acceleration, on_timer, TIMER_ID);
+		glutTimerFunc(TIMER_INTERVAL - snake_acceleration, on_timer, TIMER_ID);
 	
 	
 		while(snake->next != NULL)
@@ -546,10 +549,33 @@ static void end_game()
 	animation_ongoing = 0;
 	game_over = 1;
 	snake_acceleration = 0;
-	//score = 0;
 	printf("Kraj!!! :P\n");
 	
 	printText("GAME OVER", -0.1, 0, 1);
+	
+	//Proveravamo da li je dostignut maksimalan broj poena
+	int high_score = INT_MAX;
+	FILE* high_score_txt;
+	
+	high_score_txt = fopen("high_score.txt", "r");
+	if(high_score_txt != NULL)
+	{
+		fscanf(high_score_txt, "%d", &high_score);
+		fclose(high_score_txt);
+	}
+	
+	if(score >= high_score)
+	{
+		high_score_txt = fopen("high_score.txt", "w");
+		if(high_score_txt != NULL)
+		{
+			fprintf(high_score_txt, "%d", score);
+			fclose(high_score_txt);
+		}
+ 		char text[50];
+ 		sprintf(text, "NEW HIGH SCORE: %d", score);
+ 		printText(text, -0.17, -0.3, 1);
+	}
 }
 
 void printText(char* text, float x, float y, float z)

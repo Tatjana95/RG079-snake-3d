@@ -4,7 +4,7 @@
 #include <math.h>
 #include <time.h>
 #define TIMER_ID 1
-#define TIMER_INTERVAL 200
+#define TIMER_INTERVAL 300
 
 #define EPS (0.000001)
 
@@ -123,6 +123,7 @@ int main(int argc, char** argv)
 	frame_g = color_rand();
 	frame_b = color_rand();
 	
+	//Inicijalizuju se boje za zmiju
 	snake_r = color_rand();
 	snake_g = color_rand();
 	snake_b = color_rand();
@@ -178,9 +179,9 @@ static void on_display()
 			food_y = -0.95;
 		
 		//Boja hrane
-		food_r = color_rand;
-		food_g = color_rand;
-		food_b = color_rand;
+		food_r = color_rand();
+		food_g = color_rand();
+		food_b = color_rand();
 		
 		new_food = 0;
 	}
@@ -213,7 +214,8 @@ static void on_display()
 		snake = tmp;
 		
 		//Ubrzavamo zmiju kada pojede nesto
-		snake_acceleration-=2;
+		if(snake_acceleration < 200)
+			snake_acceleration+=2;
 	}
 	
 	char score_text[50] ;
