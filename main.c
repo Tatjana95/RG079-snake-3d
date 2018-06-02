@@ -5,7 +5,7 @@
 #include <time.h>
 #include <limits.h>
 #define TIMER_ID 1
-#define TIMER_INTERVAL 100
+#define TIMER_INTERVAL 300
 
 #define EPS (0.000001)
 
