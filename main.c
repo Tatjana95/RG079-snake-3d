@@ -22,7 +22,9 @@ static void on_reshape(int width, int height);
 static void on_timer(int);
 static void on_keyboard(unsigned char key, int x, int y);
 
-void printText(char* text, float x, float y, float z);
+static void print_text(char* text, float x, float y, float z);
+static void print_instruction_text(char* text, float x, float y, float z);
+static void print_instruction();
 
 static void key_indicator(int w, int a, int s, int d);
 
@@ -221,7 +223,10 @@ static void on_display()
 	
 	char score_text[50] ;
 	sprintf(score_text, "SCORE: %d", score);
-	printText(score_text, -4,3,0);
+	print_text(score_text, -4,3,0);
+	
+	//Ispis instrukcija
+	print_instruction();
 	
 	glutSwapBuffers();
 }
@@ -551,7 +556,7 @@ static void end_game()
 	snake_acceleration = 0;
 	printf("Kraj!!! :P\n");
 	
-	printText("GAME OVER", -0.1, 0, 1);
+	print_text("GAME OVER", -0.1, 0, 1);
 	
 	//Proveravamo da li je dostignut maksimalan broj poena
 	int high_score = INT_MAX;
@@ -574,17 +579,35 @@ static void end_game()
 		}
  		char text[50];
  		sprintf(text, "NEW HIGH SCORE: %d", score);
- 		printText(text, -0.17, -0.3, 1);
+ 		print_text(text, -0.17, -0.3, 1);
 	}
 }
 
-void printText(char* text, float x, float y, float z)
+static void print_text(char* text, float x, float y, float z)
 {
 	char* tmp;
 	glRasterPos3f(x, y, z);
 	
 	for(tmp = text ; *tmp != '\0'; tmp++)
 		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, *tmp);
+}
+
+static void print_instruction_text(char* text, float x, float y, float z)
+{
+	char* tmp;
+	glRasterPos3f(x, y, z);
+	
+	for(tmp = text ; *tmp != '\0'; tmp++)
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *tmp);
+}
+
+static void print_instruction()
+{
+ 	print_instruction_text("INSTRUCTION:", 1.47, 1.5, 0.5);
+  	print_instruction_text("COMMANDS:\tW A S D", 1.355, 1.2, 0.5);
+  	print_instruction_text("STRAT: G", 1.28, 1, 0.5);
+	print_instruction_text("PAUSE: P", 1.225, 0.84, 0.5);
+	print_instruction_text("RESTART: R", 1.17, 0.69, 0.5);
 }
 
 static float food_coor()
