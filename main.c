@@ -17,6 +17,11 @@ typedef struct{
 	struct SNAKE* preview;
 }SNAKE;
 
+typedef struct{
+	float barrier_x;
+	float barrier_y;
+}BARRIER;
+
 static void on_display(void);
 static void on_reshape(int width, int height);
 static void on_timer(int);
@@ -31,6 +36,9 @@ static void key_indicator(int w, int a, int s, int d);
 static void draw_area();
 static void draw_frame();
 static void draw_grass();
+static float barrier_coor();
+static void draw_barrier();
+
 static void draw_snake(SNAKE* head);
 static void initial_snake();
 
@@ -38,6 +46,7 @@ static void draw_food(float r, float g, float b);
 
 static void snake_move();
 static int hit_wall(float x, float y);
+static int hit_barrier(float x, float y);
 static int snake_eat(float s_x, float s_y, float f_x, float x_y);
 
 static void end_game();
@@ -62,6 +71,7 @@ int if_a = 1;
 int if_s = 0;
 int if_d = 0;
 
+BARRIER barrier[3];
 SNAKE* snake;
 
 int snake_acceleration = 0;
@@ -130,6 +140,19 @@ int main(int argc, char** argv)
 	snake_r = color_rand();
 	snake_g = color_rand();
 	snake_b = color_rand();
+
+	//Inicijalizuju se koordinate za prepreke
+	for(int i = 0; i < 2; i++)
+	{
+		float x, y;
+		do{
+			x = barrier_coor();
+			y = barrier_coor();
+			barrier[i].barrier_x = x;
+			barrier[i].barrier_y = y;
+		}while(y == 0 || (x < 0.15 && x > -0.25));
+	}
+	
 	
 	// Program ulazi u glavnu petlju.
 
@@ -169,18 +192,27 @@ static void on_display()
 	if(hit_wall(snake->snake_x, snake->snake_y))
 		end_game();
 	
+	//Provera da li zmija udara u prepreku
+	if(hit_barrier(snake->snake_x, snake->snake_y))
+		end_game();
+	
 	//Hrana za zmiju
 	if(new_food)
 	{
 		//x koordinata je slucajan broj izmedju -1 i 1 sa korakom 0.05
-		food_x  = food_coor();
-		if(food_x == -1)
-			food_x = -0.95;
-		//y koordinata je slucajan broj izmedju -1 i 1 sa korakom 0.05
-		food_y  = food_coor();
-		if(food_y == -1)
-			food_y = -0.95;
-		
+		do {
+			food_x  = food_coor();
+			if(food_x == -1)
+				food_x = -0.95;
+			if(food_x == 1)
+				food_x = 0.95;
+			//y koordinata je slucajan broj izmedju -1 i 1 sa korakom 0.05
+			food_y  = food_coor();
+			if(food_y == -1)
+				food_y = -0.95;
+			if(food_y == 1)
+				food_y = 0.95;
+		}while(hit_barrier(food_x, food_y));
 		//Boja hrane
 		food_r = color_rand();
 		food_g = color_rand();
@@ -344,6 +376,7 @@ static void draw_area()
 {
 	draw_frame();	
 	draw_grass();
+	draw_barrier();
 }
 
 static void draw_frame()
@@ -401,17 +434,6 @@ static void draw_grass()
 		glVertex3f(-1, -1, 0);
 	glEnd();	
 
-	/*glBegin(GL_LINES);
-		glColor3f(0, 0, 0);
-		for(int i=0;i<21;i++)
-		{	
-			
-			glVertex3f(-1+i/10.0,1,0);
-			glVertex3f(-1+i/10.0,-1,0);
-			glVertex3f(-1,-1+i/10.0,0);
-			glVertex3f(1,-1+i/10.0,0);
-		}
-	glEnd();*/
 }
 
 static void draw_snake(SNAKE* head)
@@ -420,23 +442,6 @@ static void draw_snake(SNAKE* head)
  		glColor3f(snake_r, snake_g, snake_b);
  	else
  		glColor3f(snake_r + 0.5, snake_g, snake_b + 0.1);
-// 	
-// 	glPushMatrix();
-// 		double clip_plane[] = {0, 0, 1, 0};
-// 		glClipPlane(GL_CLIP_PLANE0, clip_plane);
-// 		glEnable(GL_CLIP_PLANE0);
-// 		
-// 		for(int i = 2; i <= num_tail; i++)
-// 		{
-// 			glPushMatrix();
-// 				glTranslatef(i * 0.07 + ((0.015/num_tail) *0.01*i), 0, 0);
-// 				glutSolidSphere(0.05 - (0.015/num_tail) * i, 32, 32);
-// 				printf("%f\n", 0.05 - (0.015/num_tail) * i);
-// 			glPopMatrix();
-// 		}
-// 	glPopMatrix();
-// 	
-// 	glDisable(GL_CLIP_PLANE0);
 	
 	//Da li je zmija ujela samu sebe
 	SNAKE* tmp = head->next;
@@ -618,4 +623,51 @@ static float food_coor()
 static float color_rand()
 {
 	return (rand() % 10) / 10.0;
+}
+
+static float barrier_coor()
+{
+	float coor;
+	
+	do {
+		coor= ((rand() % 40) / 20.0) - 1;
+		
+	}while(coor < -0.85 || coor > -0.1 || coor == 0);
+	
+	return coor;
+}
+
+static void draw_barrier()
+{
+	int i, j;
+	
+	glColor3f(frame_r, frame_g, frame_b);
+	for(i = 0; i < 2; i++)
+		for(j = 0; j < 20; j++)
+		{
+			if(i%2 == 0)
+			{
+				glPushMatrix();
+					glTranslatef(j*0.05 + barrier[i].barrier_x, barrier[i].barrier_y, 0.025); 
+					glutSolidCube(0.05);
+				glPopMatrix();
+			}
+			else
+			{
+				glPushMatrix();
+					glTranslatef( barrier[i].barrier_x, j*0.05 + barrier[i].barrier_y, 0.025); 
+					glutSolidCube(0.05);
+				glPopMatrix();
+			}
+		}
+}
+
+static int hit_barrier(float x, float y)
+{
+	if((x > barrier[0].barrier_x - 0.075) && (x < (barrier[0].barrier_x + 20*0.05)) && (fabs(barrier[0].barrier_y - y) < EPS))
+		return 1;
+	if((y > barrier[1].barrier_y - 0.025) && (y < (barrier[1].barrier_y + 20*0.05)) && (fabs(barrier[1].barrier_x - x) < EPS))
+		return 1;
+	
+	return 0;
 }
