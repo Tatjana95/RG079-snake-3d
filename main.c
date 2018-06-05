@@ -80,7 +80,7 @@ float rot_angle = 0;
 
 int new_food = 1;
 
-score = 0;
+int score = 0;
 
 int main(int argc, char** argv)
 {
@@ -157,6 +157,8 @@ int main(int argc, char** argv)
 	// Program ulazi u glavnu petlju.
 
 	glutMainLoop();
+
+	free(snake);
 
 	return 0;
 
