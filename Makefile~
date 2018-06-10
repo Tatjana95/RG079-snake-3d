@@ -1,7 +1,7 @@
-PROGRAM   = snake.exe
-CC        = i686-w64-mingw32-gcc
-CFLAGS    = -g -Wall
-LDFLAGS   = -lopengl32 -lglut32
+PROGRAM   = snake.out
+CC        = gcc
+LDFLAGS   = -lGL -lGLU -lglut
+
 $(PROGRAM): main.o
 	$(CC) -o $(PROGRAM) main.o $(LDFLAGS)
 

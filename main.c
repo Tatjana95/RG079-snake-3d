@@ -9,6 +9,7 @@
 
 #define EPS (0.000001)
 
+//Struktira za zmiju
 typedef struct{
 	float snake_x;
 	float snake_y;
@@ -17,6 +18,7 @@ typedef struct{
 	struct SNAKE* preview;
 }SNAKE;
 
+//Struktura za prepreke
 typedef struct{
 	float barrier_x;
 	float barrier_y;
@@ -27,60 +29,59 @@ static void on_reshape(int width, int height);
 static void on_timer(int);
 static void on_keyboard(unsigned char key, int x, int y);
 
-static void print_text(char* text, float x, float y, float z);
-static void print_instruction_text(char* text, float x, float y, float z);
-static void print_instruction();
+static void print_text(char* text, float x, float y, float z); //Funkcija za ispisivanje teksta na ekranu
+static void print_instruction_text(char* text, float x, float y, float z); //Pomocna funkcija za ispis instrukcija
+static void print_instruction(); //Funkcija koja ispisuje instrukcije
 
-static void key_indicator(int w, int a, int s, int d);
+static void key_indicator(int w, int a, int s, int d); //Funkcija koja odredjuje koja je poslednja stisnuta komanda
 
-static void draw_area();
-static void draw_frame();
-static void draw_grass();
-static float barrier_coor();
-static void draw_barrier();
+static void draw_area(); //Funkcija koja iscrtava teren za igru
+static void draw_frame(); //Funkcija koja iscrtava zid
+static void draw_grass(); //Funkcija koja iscrtava zelenu podlogu po kojoj se zmija krece
+static float barrier_coor(); //Funkcija koja odredjuje jednu koordinatu prepreke
+static void draw_barrier(); //Funkcija koja iscrtava prepreke
 
-static void draw_snake(SNAKE* head);
-static void initial_snake();
+static void draw_snake(SNAKE* head); //Funkcija koja iscrtava zmiju
+static void initial_snake(); //Funkcija koja crta pocetnu zmiju
 
-static void draw_food(float r, float g, float b);
+static void draw_food(float r, float g, float b); //Funkcija koja crta hranu
 
-static void snake_move();
-static int hit_wall(float x, float y);
-static int hit_barrier(float x, float y);
-static int snake_eat(float s_x, float s_y, float f_x, float x_y);
+static void snake_move(); //Funkcija koja odredjuje u kom smeru ce se zmija kretati zavisno od poslednje komande
+static int hit_wall(float x, float y); //Funkcija koja proverava da li je udareno u zod
+static int hit_barrier(float x, float y); //Funkcija koja proverava da li je udareno u pepreku
+static int snake_eat(float s_x, float s_y, float f_x, float x_y); //Funkcija koja proverava da li je zmija pojela hranu
 
-static void end_game();
+static void end_game(); //Kraj igre
 
-static float food_coor();
-static float color_rand();
+static float food_coor(); //Koordinate hrane
+static float color_rand(); //Funkcija koja odredjuje vrednosti za boju
 
 int animation_ongoing = 0;
-int game_over= 0;
+int game_over= 0; //Indikator da li je igra zavrsena
 
 time_t t;
 
-float frame_r, frame_g, frame_b;
-float snake_r, snake_g, snake_b;
-float food_x, food_y;
-float food_r, food_g, food_b;
+float frame_r, frame_g, frame_b; //Boje okvira
+float snake_r, snake_g, snake_b; //Boje zmije
+float food_x, food_y; //Koordinate hrane
+float food_r, food_g, food_b; //Boje hrane
 
-float correct_x, correct_y;
+float correct_x, correct_y; //Za koliko treba da transliramo zmiju
 
+//Koja je poslednja zadata komanda, inicijalno je 'a', jer nam zmija na pocetku igre ide na levo
 int if_w = 0;
 int if_a = 1;
 int if_s = 0;
 int if_d = 0;
 
-BARRIER barrier[3];
-SNAKE* snake;
+BARRIER barrier[3]; //Prepreke
+SNAKE* snake; //Zmija
 
-int snake_acceleration = 0;
+int snake_acceleration = 0; //Koliko treba ubrzati zmiju
 
-float rot_angle = 0;
+int new_food = 1; //Da li je potrebno odrediti nove koordinate hrane
 
-int new_food = 1;
-
-int score = 0;
+int score = 0; //Skor
 
 int main(int argc, char** argv)
 {
@@ -204,6 +205,7 @@ static void on_display()
 		//x koordinata je slucajan broj izmedju -1 i 1 sa korakom 0.05
 		do {
 			food_x  = food_coor();
+			//Hrana ne sme da se nadje na zidu
 			if(food_x == -1)
 				food_x = -0.95;
 			if(food_x == 1)
@@ -214,8 +216,8 @@ static void on_display()
 				food_y = -0.95;
 			if(food_y == 1)
 				food_y = 0.95;
-		}while(hit_barrier(food_x, food_y));
-		//Boja hrane
+		}while(hit_barrier(food_x, food_y)); //Hrana ne sme da se nadjen da prepreci
+		//Odredjujemo boju nove hrane
 		food_r = color_rand();
 		food_g = color_rand();
 		food_b = color_rand();
@@ -223,6 +225,7 @@ static void on_display()
 		new_food = 0;
 	}
 
+	//Iscrtavanje hrane
 	glPushMatrix();
 		glTranslatef(food_x, food_y, 0.025);
 		draw_food(food_r, food_g, food_b);
@@ -250,11 +253,12 @@ static void on_display()
 		snake->preview = tmp;
 		snake = tmp;
 		
-		//Ubrzavamo zmiju kada pojede nesto
+		//Ubrzavamo zmiju kada pojede hranu
 		if(snake_acceleration < 200)
 			snake_acceleration+=2;
 	}
 	
+	//Ispis skora
 	char score_text[50] ;
 	sprintf(score_text, "SCORE: %d", score);
 	print_text(score_text, -4,3,0);
@@ -274,6 +278,7 @@ static void on_keyboard(unsigned char key, int x, int y)
 			break;
 		case 'g':
 		case 'G':
+			//Pokrecemo zmiju
 			if(!animation_ongoing)
 			{
 				animation_ongoing = 1;
@@ -290,13 +295,16 @@ static void on_keyboard(unsigned char key, int x, int y)
 			break;
 		case 'p':
 		case 'P':
+			//Pauza
 			animation_ongoing = 0;
 			break;
 		case 'r':
 		case 'R':
+			//Restart
 			glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
 			animation_ongoing = 0;
-			snake_acceleration = 0;
+			//Kada restartujemo igricu, vracamo zmiju u pocetni polozaj i resetujemo ubrzanje
+			snake_acceleration = 0;			
 			key_indicator(0, 1, 0, 0);
 			initial_snake();
 			score = 0;
@@ -304,6 +312,7 @@ static void on_keyboard(unsigned char key, int x, int y)
 		
 		case 'w':
 		case 'W':
+			//Zmija skrece gore
 			if(!if_s && animation_ongoing)
 			{
 				key_indicator(1, 0, 0, 0);
@@ -312,6 +321,7 @@ static void on_keyboard(unsigned char key, int x, int y)
 			break;
 		case 'a':
 		case 'A':
+			//Zmija skrece levo
 			if(!if_d && animation_ongoing)
 			{
 				key_indicator(0, 1, 0, 0);
@@ -320,6 +330,7 @@ static void on_keyboard(unsigned char key, int x, int y)
 			break;
 		case 's':
 		case 'S':
+			//Zmija skrece dole
 			if(!if_w && animation_ongoing)
 			{
 				key_indicator(0, 0, 1, 0);
@@ -328,6 +339,7 @@ static void on_keyboard(unsigned char key, int x, int y)
 			break;
 		case 'd':
 		case 'D':
+			//Zmija skrece desno
 			if(!if_a && animation_ongoing)
 			{
 				key_indicator(0, 0, 0, 1);
@@ -382,9 +394,7 @@ static void draw_area()
 }
 
 static void draw_frame()
-{
-	//printf("%f\n%f\n%f\n", frame_r, frame_g, frame_b);
-	
+{	
 	//Boja okvira
 	glColor3f(frame_r, frame_g, frame_b);
 	
@@ -440,7 +450,7 @@ static void draw_grass()
 
 static void draw_snake(SNAKE* head)
 {
- 	if(snake_r != 0 && snake_g != 0.5 && snake_b !=0)
+ 	if(snake_r != 0 && snake_g != 0.5 && snake_b !=0) //Zmija ne sme biti iste boje kao podloga
  		glColor3f(snake_r, snake_g, snake_b);
  	else
  		glColor3f(snake_r + 0.5, snake_g, snake_b + 0.1);
@@ -486,7 +496,6 @@ static void initial_snake()
 			exit(EXIT_FAILURE);
 		
 		tmp->snake_x = -i*0.05;
-		//tmp->snake_y = -i*0.025;
 		
 		tmp->next = snake;
 		tmp->preview = NULL;
@@ -497,7 +506,7 @@ static void initial_snake()
 
 static void draw_food(float r, float g, float b)
 {
-	if(food_r != 0 && food_g != 0.5 && food_b !=0)
+	if(food_r != 0 && food_g != 0.5 && food_b !=0) 	//Hrana ne sme biti iste boje kao podloga
  		glColor3f(food_r, food_g, food_b);
  	else
  		glColor3f(food_r + 0.5, food_g, food_b + 0.1);
@@ -569,6 +578,7 @@ static void end_game()
 	int high_score = INT_MAX;
 	FILE* high_score_txt;
 	
+	//Ucitavamo maksimum iz datoteke
 	high_score_txt = fopen("high_score.txt", "r");
 	if(high_score_txt != NULL)
 	{
@@ -576,6 +586,7 @@ static void end_game()
 		fclose(high_score_txt);
 	}
 	
+	//Ako je trenutni skor veci od maksimuma upisujemo ga u datoteku i ispisujemo na ekran da je postignut novi maksimum
 	if(score >= high_score)
 	{
 		high_score_txt = fopen("high_score.txt", "w");
